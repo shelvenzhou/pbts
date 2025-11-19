@@ -19,6 +19,7 @@ import logging
 import base64
 import json
 import os
+from pathlib import Path
 
 # Load environment variables from .env file
 from dotenv import load_dotenv
@@ -1711,6 +1712,132 @@ def contract_status():
         'factory_address': contract_manager.factory_address or None,
         'reputation_address': contract_manager.reputation_address or None
     })
+
+
+# ============================================================================
+# EXPERIMENT RESULTS ENDPOINTS
+# ============================================================================
+
+@app.route('/experiments/results', methods=['GET'])
+def get_experiment_results():
+    """
+    Get a summary of all experiment results.
+    Returns links to individual result files.
+    """
+    results_dir = Path('/app/results')
+
+    if not results_dir.exists():
+        return jsonify({
+            'error': 'No experiments have been run yet',
+            'results_dir': str(results_dir)
+        }), 404
+
+    # Find all JSON result files
+    result_files = list(results_dir.glob('*.json'))
+
+    # Check if experiments have been run
+    done_flag = results_dir / '.experiments_done'
+    experiments_run = done_flag.exists()
+    experiments_date = done_flag.read_text().strip() if experiments_run else None
+
+    return jsonify({
+        'experiments_completed': experiments_run,
+        'completion_date': experiments_date,
+        'results_directory': str(results_dir),
+        'available_results': [f.name for f in result_files],
+        'endpoints': {
+            'summary': '/experiments/results/summary',
+            'receipts': '/experiments/results/receipts',
+            'tee': '/experiments/results/tee',
+            'client_download': '/experiments/results/client-download',
+            'tracker_overhead': '/experiments/results/tracker-overhead',
+            'download_all': '/experiments/results/download'
+        }
+    })
+
+
+@app.route('/experiments/results/<result_type>', methods=['GET'])
+def get_experiment_result_file(result_type):
+    """
+    Get a specific experiment result file.
+    Available types: summary, receipts, tee, client-download, tracker-overhead
+    """
+    results_dir = Path('/app/results')
+
+    # Map result type to filename
+    filename_map = {
+        'summary': 'summary.json',
+        'receipts': 'receipts.json',
+        'tee': 'tee.json',
+        'client-download': 'client_download.json',
+        'tracker-overhead': 'tracker_overhead.json'
+    }
+
+    filename = filename_map.get(result_type)
+    if not filename:
+        return jsonify({
+            'error': 'Invalid result type',
+            'valid_types': list(filename_map.keys())
+        }), 400
+
+    result_file = results_dir / filename
+    if not result_file.exists():
+        return jsonify({
+            'error': f'Result file not found: {filename}',
+            'path': str(result_file)
+        }), 404
+
+    try:
+        with open(result_file, 'r') as f:
+            data = json.load(f)
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({
+            'error': f'Failed to read result file: {str(e)}',
+            'path': str(result_file)
+        }), 500
+
+
+@app.route('/experiments/results/download', methods=['GET'])
+def download_all_results():
+    """
+    Download all experiment results as a single JSON file.
+    Includes both JSON and TXT files from the results directory.
+    """
+    results_dir = Path('/app/results')
+
+    if not results_dir.exists():
+        return jsonify({
+            'error': 'No experiments have been run yet'
+        }), 404
+
+    # Collect all results
+    all_results = {}
+
+    # Process JSON files
+    for json_file in results_dir.glob('*.json'):
+        try:
+            with open(json_file, 'r') as f:
+                all_results[json_file.stem] = json.load(f)
+        except Exception as e:
+            all_results[json_file.stem] = {'error': str(e)}
+
+    # Process TXT files
+    for txt_file in results_dir.glob('*.txt'):
+        try:
+            with open(txt_file, 'r') as f:
+                all_results[txt_file.stem] = f.read()
+        except Exception as e:
+            all_results[txt_file.stem] = {'error': str(e)}
+
+    # Add metadata
+    done_flag = results_dir / '.experiments_done'
+    all_results['_metadata'] = {
+        'completion_date': done_flag.read_text().strip() if done_flag.exists() else None,
+        'result_count': len(all_results) - 1  # Exclude metadata itself
+    }
+
+    return jsonify(all_results)
 
 
 if __name__ == '__main__':

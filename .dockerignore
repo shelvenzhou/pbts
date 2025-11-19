@@ -1,0 +1,77 @@
+# Git
+.git/
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Documentation (not needed in container)
+docs/
+*.md
+!README.md
+
+# Tests (not needed for production, but keep for experiments)
+# tests/
+
+# Docker
+Dockerfile
+docker-compose*.yaml
+.dockerignore
+
+# Smart contracts (not needed in container unless deploying)
+smartcontract/
+
+# Temp files
+*.log
+*.tmp
+temp/
+tmp/
+
+# Results (will be generated in container)
+results/
+pbts_experiments/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Keys and secrets
+*.pem
+*.key
+*.crt
+private_key*
+secret_key*
+.env
+.env.*
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Logs
+logs/
+claude-logs/
+
+# Test data
+test_data/
+*.torrent

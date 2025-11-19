@@ -1,12 +1,22 @@
 services:
   tracker:
-    container_name: "tracker"
-    build: .
+    container_name: "pbts-tracker"
+    image: shelvenzhou49/pbts-experiment
     ports:
       - "8000:8000"
+    volumes:
+      # Add dstack socket for TEE access
+      - ${DSTACK_SOCKET:-/var/run/dstack.sock}:/var/run/dstack.sock
     environment:
-      - MIN_RATIO=0.5
-      - MAX_PEERS=50
+      # Tracker configuration
+      - MIN_RATIO=${MIN_RATIO:-0.5}
+      - MAX_PEERS=${MAX_PEERS:-50}
+      - TEE_MODE=${TEE_MODE:-disabled}  # "disabled", "enabled", or "benchmark"
+      # Experiment configuration (runs on first startup)
+      - RECEIPT_ITERATIONS=${RECEIPT_ITERATIONS:-100}
+      - RECEIPT_BATCH_SIZES=${RECEIPT_BATCH_SIZES:-10 25 50 100}
+      - TEE_ITERATIONS=${TEE_ITERATIONS:-50}
+      - TEE_VERIFY_ITERATIONS=${TEE_VERIFY_ITERATIONS:-3}
     restart: unless-stopped
     healthcheck:
       test:
@@ -19,7 +29,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 5s
+      start_period: 60s  # Give time for experiments to complete
     networks:
       - tracker-network
 
